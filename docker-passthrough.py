@@ -121,11 +121,13 @@ class Passthrough(Operations):
             return ret
         except FileNotFoundError:
             print("we broke on devicemapper lookup")
-            partial = path[1:]
-            self.containers.pop(partial, None)
+            print(full_path)
+            print(path)
+            #partial = path[1:]
+            #self.containers.pop(partial, None)
             print("popped, trying full_path again")
-            full_path = self._full_path(path)
-            self.getattr(path)
+            #full_path = self._full_path(path)
+            #self.getattr(path)
 
     def readdir(self, path, fh):
         print ("readdir " + path)
@@ -159,16 +161,32 @@ class Passthrough(Operations):
         return os.mknod(self._full_path(path), mode, dev)
 
     def rmdir(self, path):
-        full_path = self._full_path(path)
-        return os.rmdir(full_path)
+        print("Rmdir")
+        #full_path = self._full_path(path)
+        #return os.rmdir(full_path)
+        print("deleting from journal")
+        try:
+            print(self.root + path)
+            os.rmdir(self.root + path)
+        except:
+            print("failed to rmdir from journal")
+        self.container.commit("jeidtest/testfile")
+        os.rmdir(self._full_path(path))
+        self.container.commit("jeidtest/testfile" + path)
+        partial = path[1:]
+        self.containers.pop(partial, None)
+        print("popped from inmem")
 
     def mkdir(self, path, mode):
         print("Mkdir")
         print("mkdir path is " + path)
-        self.container.commit("jeidtest/testfile" + path)
         os.mkdir(self.root + path, mode)
         self.container.commit("jeidtest/testfile")
-        return os.mkdir(self._full_path(path), mode)
+        print("mkdir to journal")
+        self.container.commit("jeidtest/testfile" + path)
+        os.mkdir(self._full_path(path), mode)
+        self.container.commit("jeidtest/testfile" + path)
+        print("mkdir to disk")
 
     def statfs(self, path):
         full_path = self._full_path(path)
