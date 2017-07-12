@@ -39,10 +39,16 @@ class Passthrough(Operations):
         return os.chown(full_path, uid, gid)
 
     def getattr(self, path, fh=None):
+        print("getattr")
+        print(path)
         full_path = self._full_path(path)
+        print("fullpath is " + full_path)
+        print("gonna do lstat")
         st = os.lstat(full_path)
-        return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
+        ret = dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
                      'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
+        print(ret)
+        return ret
 
     def readdir(self, path, fh):
         full_path = self._full_path(path)
@@ -62,6 +68,7 @@ class Passthrough(Operations):
             return pathname
 
     def mknod(self, path, mode, dev):
+        print("mknod")
         return os.mknod(self._full_path(path), mode, dev)
 
     def rmdir(self, path):
@@ -91,16 +98,20 @@ class Passthrough(Operations):
         return os.link(self._full_path(name), self._full_path(target))
 
     def utimens(self, path, times=None):
+        print("utimens")
         return os.utime(self._full_path(path), times)
 
     # File methods
     # ============
 
     def open(self, path, flags):
+        print("open")
         full_path = self._full_path(path)
         return os.open(full_path, flags)
 
     def create(self, path, mode, fi=None):
+        print("create")
+        print(path)
         full_path = self._full_path(path)
         return os.open(full_path, os.O_WRONLY | os.O_CREAT, mode)
 
