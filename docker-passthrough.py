@@ -78,13 +78,19 @@ class Passthrough(Operations):
             return path
         else:
             if os.path.exists(self.root + partial):
-                root = self.start_container(partial)
-                if root == -errno.ENOENT:
-                    print("enoent")
-                    return root
-                path = os.path.join(root, partial)
-                print(path)
-                return path
+                if os.path.isfile(self.root + partial):
+                    root = self.start_container(partial)
+                    if root == -errno.ENOENT:
+                        print("enoent")
+                        return root
+                    path = os.path.join(root, partial)
+                    print(path)
+                    return path
+                else:
+                    #we're a folder
+                    print("Folder! " + self.root + partial)
+                    path = os.path.join(self.root, partial)
+                    return path
             else:
                 print("not in journal so gonna enoent")
                 return -errno.ENOENT
@@ -168,25 +174,18 @@ class Passthrough(Operations):
         try:
             print(self.root + path)
             os.rmdir(self.root + path)
+            self.container.commit("jeidtest/testfile")
+            print("gonna push")
+            self.client.images.push("jeidtest/testfile")
         except:
             print("failed to rmdir from journal")
-        self.container.commit("jeidtest/testfile")
-        os.rmdir(self._full_path(path))
-        self.container.commit("jeidtest/testfile" + path)
-        partial = path[1:]
-        self.containers.pop(partial, None)
-        print("popped from inmem")
 
     def mkdir(self, path, mode):
         print("Mkdir")
         print("mkdir path is " + path)
         os.mkdir(self.root + path, mode)
         self.container.commit("jeidtest/testfile")
-        print("mkdir to journal")
-        self.container.commit("jeidtest/testfile" + path)
-        os.mkdir(self._full_path(path), mode)
-        self.container.commit("jeidtest/testfile" + path)
-        print("mkdir to disk")
+        self.client.images.push("jeidtest/testfile")
 
     def statfs(self, path):
         full_path = self._full_path(path)
@@ -203,6 +202,7 @@ class Passthrough(Operations):
         except:
             print("failed to unlink from journal")
         self.container.commit("jeidtest/testfile")
+        self.client.images.push("jeidtest/testfile")
         partial = path[1:]
         self.containers.pop(partial, None)
         print("popped from inmem")
@@ -235,8 +235,11 @@ class Passthrough(Operations):
         print ("Create")
         print("create path is " + path)
         self.container.commit("jeidtest/testfile" + path)
+        print("gonna push")
+        self.client.images.push("jeidtest/testfile" + path)
         touch(self.root + path)
         self.container.commit("jeidtest/testfile")
+        self.client.images.push("jeidtest/testfile")
         print("created a fake inode")
         full_path = self._full_path(path)
         print (full_path)
@@ -270,12 +273,14 @@ class Passthrough(Operations):
             cont = self.containers[path]
             ret = os.close(fh)
             cont.container.commit("jeidtest/testfile/"+path)
+            self.client.images.push("jeidtest/testfile" + path)
             print("path was in self.containers")
             return ret
         else:
             print("uhoh")
             ret = os.close(fh)
             self.container.commit("jeidtest/testfile")
+            self.client.images.push("jeidtest/testfile")
             print("probably errored")
             return ret
 
