@@ -80,8 +80,13 @@ class Passthrough(Operations):
             print(path)
             return path
         else:
-            if os.path.exists(self.root + partial):
-                if os.path.isfile(self.root + partial):
+            print("check if exists: " + self.root + partial)
+            if os.path.lexists(self.root + partial):
+                if os.path.islink(self.root + partial):
+                    print("Symlink " + self.root + partial)
+                    path = os.path.join(self.root, partial)
+                    return path
+                elif os.path.isfile(self.root + partial):
                     root = self.start_container(partial)
                     if root == -errno.ENOENT:
                         print("enoent")
@@ -212,7 +217,13 @@ class Passthrough(Operations):
         #return os.unlink(self._full_path(path))
 
     def symlink(self, name, target):
-        return os.symlink(target, self._full_path(name))
+        print("Symlink")
+        print("Symlink name is " + name + " and target is " + target)
+        #os.mkdir(self.root + path, mode)
+        os.symlink(target, self.root + name)
+        print("comitting")
+        self.container.commit("jeidtest/testfile")
+        self.client.images.push("jeidtest/testfile")
 
     def rename(self, old, new):
         return os.rename(self._full_path(old), self._full_path(new))
