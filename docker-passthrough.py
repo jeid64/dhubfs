@@ -9,6 +9,7 @@ import errno
 from fuse import FUSE, FuseOSError, Operations
 
 import docker
+import hashlib
 
 ignore_files = ['busybox-x86_64', '.dockerenv', 'etc', 'dev', 'proc', 'sys', 'run']
 
@@ -42,7 +43,9 @@ class Passthrough(Operations):
     def start_container(self, partial):
         print("start_container")
         try:
-            container = self.client.containers.run("jeidtest/testfile/" + partial, "/busybox-x86_64 sleep 100000", detach=True)
+            filenamehash = hashlib.md5("/".encode() + partial.encode()).hexdigest()
+            print(partial + " == this hash: " + filenamehash)
+            container = self.client.containers.run("jeidtest/testfile" + filenamehash, "/busybox-x86_64 sleep 100000", detach=True)
             inspect_dict = self.apiclient.inspect_container(container.id)
             print (inspect_dict)
             dev_name =  inspect_dict['GraphDriver']['Data']['DeviceName']
@@ -222,6 +225,14 @@ class Passthrough(Operations):
 
     # File methods
     # ============
+    def push_hash_image(self, container, path):
+        print ("HASHING FILENAME")
+        filenamehash = hashlib.md5(path.encode()).hexdigest()
+        print(path + " == this hash: " + filenamehash)
+        container.commit("jeidtest/testfile" + filenamehash)
+        print("finished commiting, now gonna push")
+        self.client.images.push("jeidtest/testfile" +  filenamehash)
+        print("finished pushing")
 
     def open(self, path, flags):
         print ("open")
@@ -234,9 +245,7 @@ class Passthrough(Operations):
     def create(self, path, mode, fi=None):
         print ("Create")
         print("create path is " + path)
-        self.container.commit("jeidtest/testfile" + path)
-        print("gonna push")
-        self.client.images.push("jeidtest/testfile" + path)
+        self.push_hash_image(self.container, path)
         touch(self.root + path)
         self.container.commit("jeidtest/testfile")
         self.client.images.push("jeidtest/testfile")
@@ -272,8 +281,7 @@ class Passthrough(Operations):
         if path in self.containers:
             cont = self.containers[path]
             ret = os.close(fh)
-            cont.container.commit("jeidtest/testfile/"+path)
-            self.client.images.push("jeidtest/testfile" + path)
+            self.push_hash_image(cont.container,"" + path)
             print("path was in self.containers")
             return ret
         else:
