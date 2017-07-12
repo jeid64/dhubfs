@@ -226,7 +226,22 @@ class Passthrough(Operations):
         self.client.images.push("jeidtest/testfile")
 
     def rename(self, old, new):
-        return os.rename(self._full_path(old), self._full_path(new))
+        print("Rename")
+        print("Rename old is " + old + " and new is " + new)
+        #os.mkdir(self.root + path, mode)
+        if old.startswith("/"):
+            path = old[1:]
+        if path in self.containers:
+            cont = self.containers[path]
+            print("renaming on disk")
+            os.rename(cont.path + old, cont.path + new)
+            print("pushing rename to image")
+            self.push_hash_image(cont.container, new)
+        os.rename(self.root + old, self.root + new)
+        print("comitting")
+        self.container.commit("jeidtest/testfile")
+        self.client.images.push("jeidtest/testfile")
+        #return os.rename(self._full_path(old), self._full_path(new))
 
     def link(self, target, name):
         return os.link(self._full_path(name), self._full_path(target))
@@ -292,7 +307,7 @@ class Passthrough(Operations):
         if path in self.containers:
             cont = self.containers[path]
             ret = os.close(fh)
-            self.push_hash_image(cont.container,"" + path)
+            self.push_hash_image(cont.container,"/" + path)
             print("path was in self.containers")
             return ret
         else:
